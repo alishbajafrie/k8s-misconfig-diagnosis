@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  namespace: demo
+  labels: {app: loadgen}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: loadgen}
+  template:
+    metadata:
+      labels: {app: loadgen}
+    spec:
+      containers:
+        - name: loadgen
+          image: demo-app:v1
+          imagePullPolicy: IfNotPresent
+          command: ["python", "loadgen.py"]
+          env:
+            - {name: TARGET_URL, value: "http://frontend:8080/"}
+            - {name: INTERVAL, value: "0.5"}
+            - {name: REQUEST_TIMEOUT, value: "5"}
+          resources:
+            requests: {cpu: 20m, memory: 64Mi}
+            limits: {cpu: 200m, memory: 128Mi}

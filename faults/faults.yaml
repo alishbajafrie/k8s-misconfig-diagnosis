@@ -1,0 +1,131 @@
+# config_path = the setting that was changed (<kind>/<name>:<field>)
+# commands run from the repo root after the baseline is up
+
+namespace: demo
+
+faults:
+  F00:
+    name: Healthy baseline (no fault)
+    variants:
+      a:
+        config_path: null
+        commands: []
+
+  F01:
+    name: Service targetPort does not match containerPort
+    variants:
+      a:
+        config_path: "service/orders:spec.ports[0].targetPort"
+        commands:
+          - >-
+            kubectl -n demo patch service orders --type=json
+            -p '[{"op":"replace","path":"/spec/ports/0/targetPort","value":5001}]'
+
+  F02:
+    name: Wrong hostname in an environment variable
+    variants:
+      a:
+        config_path: "deployment/orders:containers[orders].env.REDIS_HOST"
+        commands:
+          - kubectl -n demo set env deployment/orders REDIS_HOST=redis-cache
+      b:
+        config_path: "deployment/frontend:containers[frontend].env.ORDERS_URL"
+        commands:
+          - kubectl -n demo set env deployment/frontend ORDERS_URL=http://order:5000
+
+  F03:
+    name: Wrong database password in Secret
+    variants:
+      a:
+        config_path: "secret/orders-db:data.DB_PASSWORD"
+        commands:
+          - >-
+            kubectl -n demo patch secret orders-db --type=merge
+            -p '{"stringData":{"DB_PASSWORD":"wrong-password"}}'
+          - kubectl -n demo rollout restart deployment/orders
+
+  F04:
+    name: Memory limit too low (OOMKilled)
+    variants:
+      a:
+        config_path: "deployment/orders:containers[orders].resources.limits.memory"
+        commands:
+          - kubectl -n demo set resources deployment/orders -c orders --requests=memory=24Mi --limits=memory=24Mi
+      b:
+        config_path: "deployment/frontend:containers[frontend].resources.limits.memory"
+        commands:
+          - kubectl -n demo set resources deployment/frontend -c frontend --requests=memory=24Mi --limits=memory=24Mi
+
+  F05:
+    name: Readiness probe points at a path that does not exist
+    variants:
+      a:
+        config_path: "deployment/orders:containers[orders].readinessProbe"
+        commands:
+          - >-
+            kubectl -n demo patch deployment orders --type=json
+            -p '[{"op":"replace","path":"/spec/template/spec/containers/0/readinessProbe/httpGet/path","value":"/readyz"}]'
+      b:
+        config_path: "deployment/frontend:containers[frontend].readinessProbe"
+        commands:
+          - >-
+            kubectl -n demo patch deployment frontend --type=json
+            -p '[{"op":"replace","path":"/spec/template/spec/containers/0/readinessProbe/httpGet/path","value":"/healthz"}]'
+
+  F06:
+    name: Liveness probe points at the wrong port
+    variants:
+      a:
+        config_path: "deployment/orders:containers[orders].livenessProbe"
+        commands:
+          - >-
+            kubectl -n demo patch deployment orders --type=json
+            -p '[{"op":"replace","path":"/spec/template/spec/containers/0/livenessProbe/httpGet/port","value":5001}]'
+
+  F07:
+    name: Image tag that does not exist
+    variants:
+      a:
+        config_path: "deployment/orders:containers[orders].image"
+        commands:
+          - kubectl -n demo set image deployment/orders orders=demo-app:v2-missing
+      b:
+        config_path: "deployment/frontend:containers[frontend].image"
+        commands:
+          - kubectl -n demo set image deployment/frontend frontend=demo-app:v2-missing
+
+  F08:
+    name: Service selector does not match pod labels
+    variants:
+      a:
+        config_path: "service/orders:spec.selector"
+        commands:
+          - >-
+            kubectl -n demo patch service orders --type=json
+            -p '[{"op":"replace","path":"/spec/selector","value":{"app":"orders-api"}}]'
+      b:
+        config_path: "service/frontend:spec.selector"
+        commands:
+          - >-
+            kubectl -n demo patch service frontend --type=json
+            -p '[{"op":"replace","path":"/spec/selector","value":{"app":"web"}}]'
+
+  F09:
+    name: NetworkPolicy blocks traffic to the database
+    variants:
+      a:
+        config_path: "networkpolicy/deny-postgres"
+        commands:
+          - kubectl apply -f faults/manifests/deny-postgres.yaml
+
+  F10:
+    name: CPU limit too low (throttling)
+    variants:
+      a:
+        config_path: "deployment/orders:containers[orders].resources.limits.cpu"
+        commands:
+          - kubectl -n demo set resources deployment/orders -c orders --requests=cpu=5m --limits=cpu=5m
+      b:
+        config_path: "deployment/frontend:containers[frontend].resources.limits.cpu"
+        commands:
+          - kubectl -n demo set resources deployment/frontend -c frontend --requests=cpu=5m --limits=cpu=5m
