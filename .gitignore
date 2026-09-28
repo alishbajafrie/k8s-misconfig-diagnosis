@@ -5,3 +5,4 @@ __pycache__/
 data/raw/
 data/dev/
 results/dev/
+collect*.log
