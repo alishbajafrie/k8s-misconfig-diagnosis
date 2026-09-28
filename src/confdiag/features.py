@@ -14,6 +14,7 @@ import numpy as np
 from .parse import Run
 
 _MASKS = [
+    (re.compile(r"\[\d{2}/[a-z]{3}/\d{4} [\d:]+\]"), " <ts> "),
     (re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b"), " <ip> "),
     (re.compile(r"\b[a-z0-9-]+?-[a-z0-9]{8,10}-[a-z0-9]{5}\b"), " <pod> "),
     (re.compile(r"\b0x[0-9a-f]+\b|\b[0-9a-f]{12,}\b"), " <hex> "),
@@ -43,7 +44,7 @@ def logs_text(run: Run) -> str:
 def k8s_text(run: Run) -> str:
     lines = []
     for ev in run.events:
-        if ev.get("type") == "Normal" and ev.get("reason") in {"Scheduled", "Pulled", "Created", "Started"}:
+        if ev.get("type") != "Warning":
             continue
         lines.append(f"event {ev.get('reason', '')} {normalise(ev.get('message', ''))}")
     return "\n".join(lines)
@@ -98,6 +99,8 @@ def k8s_state_features(run: Run) -> dict[str, float]:
             f["services_no_endpoints_at_all"] += 1
 
     for ev in run.events:
+        if ev.get("type") != "Warning":
+            continue
         reason = ev.get("reason", "unknown")
         count = ev.get("count") or 1
         f[f"event_{reason}"] += count
