@@ -166,6 +166,10 @@ With a wrong REDIS_HOST (F02-a) users still got HTTP 200, since orders falls bac
 - NetworkPolicy rule that works for both drop and reject: the target Service has ready endpoints, clients still fail, and a NetworkPolicy selects the target pods.
 - Faults with no pod-state signal (wrong DB_PORT, REDIS_HOST pointing at another existing Service, missing ConfigMap key), on fresh runs.
 
+## Related work
+
+This project was inspired by Falconf (Kim, Suneja, Choi, Kwon and Tak, ICDCS 2026), which diagnoses configuration errors by learning from log sequences and uses automatically injected misconfigurations to train. I found it on the CLODIS Lab publication list. I couldn't find a public copy, so I have only read the title and listing, not the full paper. My project is a much smaller, independent try at a similar idea for Kubernetes deployment config. I don't claim anything new over Falconf.
+
 ## Limitations
 
 - One small app and one fault at a time.
@@ -179,6 +183,8 @@ With a wrong REDIS_HOST (F02-a) users still got HTTP 200, since orders falls bac
 - Two simultaneous faults.
 - Log template mining (e.g. Drain) instead of regex normalisation.
 - Ranking candidate config fields (top-k localisation).
+- The rules were written while looking at dev runs from all 17 scenarios, including the b variants. So the rules' 1.000 on variant b is not the same kind of generalisation test as the learned model's, which never saw b.
+- The test sets are small (5 runs per scenario; 30 runs for train a / test b), so one run changes accuracy by about 3 points.
 
 ## Layout
 
