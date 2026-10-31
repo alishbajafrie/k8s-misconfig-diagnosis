@@ -1,6 +1,6 @@
 # k8s-misconfig-diagnosis
 
-Diagnosing configuration-induced failures in a Kubernetes microservice app from logs and cluster state.
+Diagnosing Kubernetes deployment misconfigurations in a microservice app by combining logs with cluster state.
 
 A small app runs on a local k3s cluster (k3d). I inject common misconfigurations one at a time, collect logs, events and object state, and compare two ways of finding the broken setting:
 
@@ -168,7 +168,9 @@ With a wrong REDIS_HOST (F02-a) users still got HTTP 200, since orders falls bac
 
 ## Related work
 
-This project was inspired by Falconf (Kim, Suneja, Choi, Kwon and Tak, ICDCS 2026), which diagnoses configuration errors by learning from log sequences and uses automatically injected misconfigurations to train. I found it on the CLODIS Lab publication list. I couldn't find a public copy, so I have only read the title and listing, not the full paper. My project is a much smaller, independent try at a similar idea for Kubernetes deployment config. I don't claim anything new over Falconf.
+This project follows the idea in Falconf (Y. Kim, S. Suneja, Y. Choi, Y.-W. Kwon and B. Tak, ICDCS 2026, https://doi.org/10.1109/2575-8411.2026.00050). Falconf injects one contextual misconfiguration at a time into Spark, Hadoop and ZooKeeper, turns the failure logs into log-template sequences, and trains a two-stage transformer that ranks the likely misconfigured parameters. It uses logs only, needs a model per software, and its accuracy dropped on a newer Spark version when the log wording and the order of operations changed.
+
+My project is much smaller and looks at a different layer: Kubernetes deployment config (Services, env vars, Secrets, probes, resource limits, image tags, NetworkPolicy) in a microservice app, where the broken setting and the symptom are often in different services. It adds pod state and Kubernetes events next to the logs, tests whether diagnosis carries over to a different service, and includes silent degradation cases. The learned model is a simple bag-of-templates classifier (TF-IDF and logistic regression) that ignores log order. I do not claim anything new over Falconf.
 
 ## Limitations
 
@@ -176,6 +178,8 @@ This project was inspired by Falconf (Kim, Suneja, Choi, Kwon and Tak, ICDCS 202
 - Faults are chosen by hand, so the distribution is not realistic.
 - The rules read live config and the learned model does not, so they are not a like-for-like comparison.
 - CPU-related faults are sensitive to load on the host.
+- The rules were written while looking at dev runs from all 17 scenarios, including the b variants. So the rules score of 1.000 on variant b is not the same kind of generalisation test as the learned model, which never saw b.
+- The test sets are small (5 runs per scenario; 30 runs for train a / test b), so one run changes accuracy by about 3 points.
 
 ## Next steps
 
@@ -183,8 +187,10 @@ This project was inspired by Falconf (Kim, Suneja, Choi, Kwon and Tak, ICDCS 202
 - Two simultaneous faults.
 - Log template mining (e.g. Drain) instead of regex normalisation.
 - Ranking candidate config fields (top-k localisation).
-- The rules were written while looking at dev runs from all 17 scenarios, including the b variants. So the rules' 1.000 on variant b is not the same kind of generalisation test as the learned model's, which never saw b.
-- The test sets are small (5 runs per scenario; 30 runs for train a / test b), so one run changes accuracy by about 3 points.
+
+## How this was built
+
+I used an AI assistant for much of the code and for guidance. I set up the cluster, ran all the experiments and checked the results myself.
 
 ## Layout
 
