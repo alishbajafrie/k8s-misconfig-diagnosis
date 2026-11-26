@@ -129,3 +129,17 @@ faults:
         config_path: "deployment/frontend:containers[frontend].resources.limits.cpu"
         commands:
           - kubectl -n demo set resources deployment/frontend -c frontend --requests=cpu=5m --limits=cpu=5m
+
+  # v0.2. The rule for F11 is written from F11-a dev runs only; F11-b is
+  # first collected in the test runs.
+  F11:
+    name: Wrong port in a client connection setting
+    variants:
+      a:
+        config_path: "deployment/orders:containers[orders].env.REDIS_PORT"
+        commands:
+          - kubectl -n demo set env deployment/orders REDIS_PORT=6380
+      b:
+        config_path: "deployment/frontend:containers[frontend].env.ORDERS_URL"
+        commands:
+          - kubectl -n demo set env deployment/frontend ORDERS_URL=http://orders:5001
