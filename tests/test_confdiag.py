@@ -67,6 +67,14 @@ def test_evaluate_end_to_end(tmp_path):
     assert res["rules"]["accuracy"] == 1.0
     assert set(res["cv"]) == {"logs_only", "k8s_only", "logs+k8s"}
     assert "rules" in res["holdout"]
+    # v0.2: both transfer directions, ranked metrics and confidence intervals
+    assert "rules" in res["holdout_ba"]
+    for key in ("cv", "holdout", "holdout_ba"):
+        s = res[key]["logs+k8s"]
+        assert s["accuracy"] <= s["top3"] <= 1.0
+        assert s["accuracy"] <= s["mrr"] <= 1.0
+        lo, hi = s["accuracy_ci95"]
+        assert 0.0 <= lo <= s["accuracy"] <= hi <= 1.0
     for f in ("metrics.json", "per_run.csv", "summary.md", "confusion_rules.png"):
         assert (tmp_path / "results" / f).exists()
     json.loads((tmp_path / "results" / "metrics.json").read_text())

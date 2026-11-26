@@ -53,6 +53,12 @@ class Diagnoser:
     def predict(self, feats: list[dict]) -> list[str]:
         return list(self.clf_.predict(self._matrix(feats, fit=False)))
 
+    def rank(self, feats: list[dict]) -> list[list[str]]:
+        """All known classes per run, most likely first (for top-3 and MRR)."""
+        proba = self.clf_.predict_proba(self._matrix(feats, fit=False))
+        classes = self.clf_.classes_
+        return [[str(classes[i]) for i in np.argsort(-row, kind="stable")] for row in proba]
+
     def top_features(self, k: int = 8) -> dict[str, list[str]]:
         names = []
         for g in self.groups:
