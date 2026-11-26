@@ -12,7 +12,7 @@ from sim import apply_command, build_run, load_manifests, resources_valid
 
 CATALOG = load_catalog()
 # new faults whose rule and simulator case are not written yet (v0.2 dev)
-PENDING = {"F11"}
+PENDING: set[str] = set()
 
 
 @pytest.mark.parametrize("key", sorted(CATALOG))

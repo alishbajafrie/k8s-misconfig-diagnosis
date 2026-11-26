@@ -276,6 +276,69 @@ def rule_netpol(run: Run) -> Diagnosis | None:
     return None
 
 
+# v0.2, F11. Written from F11-a dev runs only. A wrong port in a client
+# setting: the host is a real Service, but the port is not one of its ports.
+# On k3s a connection to a port the Service does not expose times out (it is
+# dropped, not rejected). redis-py does not put host:port in the message
+# ("Timeout connecting to server"), so the app logs them as fields too.
+PORT_FAIL = re.compile(r"refused|timed out|timeout", re.I)
+HOST_PORT = re.compile(
+    r"host='(?P<h1>[^']+)', port=(?P<p1>\d+)"
+    r"|connecting to (?P<h2>[A-Za-z0-9.-]+):(?P<p2>\d+)"
+    r'|connection to server at "(?P<h3>[^"]+)" \([^)]*\), port (?P<p3>\d+)'
+)
+
+
+def _host_port(ln: LogLine) -> tuple[str, int] | None:
+    m = HOST_PORT.search(ln.msg)
+    if m:
+        for i in "123":
+            if m.group("h" + i):
+                return m.group("h" + i), int(m.group("p" + i))
+    for k, v in ln.fields.items():
+        if k.endswith("_host") and str(ln.fields.get(k[:-5] + "_port", "")).isdigit():
+            return str(v), int(ln.fields[k[:-5] + "_port"])
+    return None
+
+
+def _env_holding_port(dep: dict, host: str, port: int) -> tuple[str, str] | None:
+    for c in _containers(dep):
+        for env in c.get("env", []) or []:
+            val = env.get("value")
+            if val is None:
+                continue
+            if val == str(port):
+                return c["name"], env["name"]
+            u = urlparse(val)
+            if u.hostname == host and u.port == port:
+                return c["name"], env["name"]
+    return None
+
+
+def rule_client_port(run: Run) -> Diagnosis | None:
+    services = {s["metadata"]["name"]: s for s in _app_services(run)}
+    for ln, _ in _log_matches(run, PORT_FAIL):
+        hp = _host_port(ln)
+        if not hp:
+            continue
+        host, port = hp
+        svc = services.get(host)
+        if not svc or _ready_addresses(run, host) == 0:
+            continue
+        svc_ports = {sp.get("port") for sp in svc["spec"].get("ports", [])}
+        if port in svc_ports:
+            continue
+        dep = _deployment(run, ln.app)
+        found = _env_holding_port(dep, host, port) if dep else None
+        path = f"deployment/{ln.app}:containers[{found[0]}].env.{found[1]}" if found else None
+        var = found[1] if found else "a client setting"
+        return Diagnosis("F11", path, "client_port",
+                         f"'{ln.app}' connects to Service '{host}' on port {port}, but the Service "
+                         f"only exposes {sorted(svc_ports)}. {var} holds the wrong port.",
+                         [_fmt(ln)])
+    return None
+
+
 def rule_cpu(run: Run) -> Diagnosis | None:
     sym = symptom_features(run)
     slow = (sym["lg_p95_ms"] > 1000 or sym["lg_timeout_rate"] > 0.05
@@ -319,7 +382,7 @@ def rule_readiness(run: Run) -> Diagnosis | None:
 
 
 RULES = [rule_image, rule_oom, rule_auth, rule_dns, rule_selector, rule_target_port,
-         rule_netpol, rule_cpu, rule_liveness, rule_readiness]
+         rule_netpol, rule_client_port, rule_cpu, rule_liveness, rule_readiness]
 
 
 def diagnose(run: Run) -> Diagnosis:

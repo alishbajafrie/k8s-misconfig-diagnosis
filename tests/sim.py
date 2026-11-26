@@ -230,6 +230,22 @@ def build_run(root: Path, key: str, seed: int = 0) -> Path:
         events.append(_event("Unhealthy", pod["orders"]["metadata"]["name"],
                              "Readiness probe failed: HTTP probe failed with statuscode: 503", count=15))
         lg_bad(200, lat=(2000, 2100))
+    elif f == "F11":
+        # sim only (code paths). a is based on F11-a dev runs: the connect
+        # timeout to a port the Service does not expose; b is a guess
+        if target == "orders":
+            for _ in range(30):
+                logs["orders"].append(_log("orders", "WARNING", "cache unavailable: Timeout connecting to server",
+                                           redis_host="redis", redis_port=6380))
+            lg_ok(120)
+            lg_bad(80)
+        else:
+            for _ in range(30):
+                logs["frontend"].append(_log("frontend", "ERROR",
+                    "upstream orders request failed: ConnectTimeout: HTTPConnectionPool(host='orders', port=5001): "
+                    "Max retries exceeded with url: /orders (Caused by ConnectTimeoutError(<urllib3.connection."
+                    "HTTPConnection object>, 'Connection to orders timed out. (connect timeout=2.0)'))"))
+            lg_bad(200)
     elif f == "F10":
         events.append(_event("Unhealthy", pod[target]["metadata"]["name"],
                              'Liveness probe failed: Get "http://10.42.0.9:5000/health": context deadline exceeded '
