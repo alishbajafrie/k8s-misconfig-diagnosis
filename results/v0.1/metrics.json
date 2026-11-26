@@ -1,0 +1,52 @@
+{
+  "runs": 85,
+  "rules": {
+    "n": 85,
+    "accuracy": 0.9765,
+    "macro_f1": 0.969,
+    "localisation_accuracy": 0.975
+  },
+  "cv": {
+    "logs_only": {
+      "n": 55,
+      "accuracy": 0.7818,
+      "macro_f1": 0.7697,
+      "folds": 5
+    },
+    "k8s_only": {
+      "n": 55,
+      "accuracy": 0.8182,
+      "macro_f1": 0.8161,
+      "folds": 5
+    },
+    "logs+k8s": {
+      "n": 55,
+      "accuracy": 1.0,
+      "macro_f1": 1.0,
+      "folds": 5
+    }
+  },
+  "holdout": {
+    "logs_only": {
+      "n": 30,
+      "accuracy": 0.3667,
+      "macro_f1": 0.2167
+    },
+    "k8s_only": {
+      "n": 30,
+      "accuracy": 0.8333,
+      "macro_f1": 0.7143
+    },
+    "logs+k8s": {
+      "n": 30,
+      "accuracy": 0.9,
+      "macro_f1": 0.7959
+    },
+    "rules": {
+      "n": 30,
+      "accuracy": 1.0,
+      "macro_f1": 1.0,
+      "localisation_accuracy": 1.0
+    }
+  }
+}

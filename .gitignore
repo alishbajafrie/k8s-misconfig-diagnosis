@@ -6,3 +6,4 @@ data/raw/
 data/dev/
 results/dev/
 collect*.log
+data/test-v0.2/

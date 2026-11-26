@@ -1,0 +1,112 @@
+{
+  "F00": [
+    "logs_text:<svc> http",
+    "logs_text:get <svc>",
+    "logs_text:<n>",
+    "logs_text:<n> <n>",
+    "logs_text:<n> info",
+    "logs_text:<ts>",
+    "logs_text:<ts> get",
+    "logs_text:get"
+  ],
+  "F01": [
+    "symptom:lg_error_rate",
+    "logs_text:failed",
+    "logs_text:connection",
+    "logs_text:<svc> port",
+    "logs_text:host <svc>",
+    "logs_text:port <n>",
+    "logs_text:port",
+    "logs_text:host"
+  ],
+  "F02": [
+    "symptom:lg_p50_ms",
+    "logs_text:cache",
+    "logs_text:associated with",
+    "logs_text:associated",
+    "logs_text:connecting",
+    "logs_text:cache <n>",
+    "logs_text:unavailable error",
+    "logs_text:connecting to"
+  ],
+  "F03": [
+    "k8s_state:probe_readiness_refused",
+    "k8s_state:event_BackOff",
+    "k8s_state:event_Unhealthy",
+    "k8s_state:restarts_max",
+    "k8s_state:restarts_total",
+    "k8s_state:terminated_Error",
+    "symptom:lg_p95_ms",
+    "k8s_state:waiting_CrashLoopBackOff"
+  ],
+  "F04": [
+    "k8s_state:event_BackOff",
+    "k8s_state:restarts_max",
+    "k8s_state:restarts_total",
+    "k8s_state:terminated_OOMKilled",
+    "symptom:lg_p95_ms",
+    "k8s_state:waiting_CrashLoopBackOff",
+    "k8s_text:<n> <n>",
+    "k8s_state:pods_not_ready"
+  ],
+  "F05": [
+    "k8s_state:probe_readiness_http_status",
+    "k8s_state:event_Unhealthy",
+    "symptom:lg_p95_ms",
+    "logs_text:readyz http",
+    "logs_text:get readyz",
+    "logs_text:readyz",
+    "symptom:lg_requests",
+    "k8s_state:pods_not_ready"
+  ],
+  "F06": [
+    "k8s_state:probe_liveness_refused",
+    "k8s_state:event_Unhealthy",
+    "k8s_state:terminated_Error",
+    "k8s_state:restarts_max",
+    "k8s_state:restarts_total",
+    "k8s_text:<ip>",
+    "k8s_text:health dial",
+    "k8s_text:<ip> health"
+  ],
+  "F07": [
+    "k8s_state:event_Failed",
+    "symptom:lg_p95_ms",
+    "k8s_state:waiting_ImagePullBackOff",
+    "k8s_state:pods_not_ready",
+    "k8s_text:to",
+    "k8s_text:demo app",
+    "k8s_text:demo",
+    "k8s_text:app <n>"
+  ],
+  "F08": [
+    "symptom:lg_p95_ms",
+    "k8s_state:services_no_endpoints_at_all",
+    "symptom:lg_error_rate",
+    "k8s_state:services_no_ready_endpoints",
+    "logs_text:ready http",
+    "logs_text:get ready",
+    "logs_text:ready",
+    "logs_text:failed"
+  ],
+  "F09": [
+    "k8s_state:probe_readiness_http_status",
+    "k8s_state:event_Unhealthy",
+    "symptom:lg_error_rate",
+    "logs_text:failed connection",
+    "symptom:lg_p95_ms",
+    "logs_text:and",
+    "logs_text:and accepting",
+    "logs_text:tcp ip"
+  ],
+  "F10": [
+    "k8s_state:probe_readiness_refused",
+    "k8s_state:probe_liveness_refused",
+    "k8s_state:event_Unhealthy",
+    "symptom:lg_p95_ms",
+    "k8s_state:pods_not_ready",
+    "k8s_text:<ip>",
+    "k8s_state:services_no_ready_endpoints",
+    "k8s_text:get http"
+  ]
+}
