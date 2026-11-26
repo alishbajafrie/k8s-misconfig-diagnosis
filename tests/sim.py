@@ -221,10 +221,14 @@ def build_run(root: Path, key: str, seed: int = 0) -> Path:
                              'Failed to pull image "demo-app:v2-missing": failed to resolve reference'))
         lg_bad(200, err="ConnectionError" if target == "frontend" else None)
     elif f == "F09":
+        # k3s mostly rejects instead of dropping, so orders sees "Connection refused"
         for _ in range(15):
-            logs["orders"].append(_log("orders", "ERROR",
-                'query failed: connection to server at "postgres" (10.43.12.7), port 5432 failed: timeout expired'))
+            logs["orders"].append(_log("orders", "WARNING",
+                'readiness check failed: connection to server at "postgres" (10.43.12.7), port 5432 failed: '
+                "Connection refused\n\tIs the server running on that host and accepting TCP/IP connections?"))
         not_ready("orders")
+        events.append(_event("Unhealthy", pod["orders"]["metadata"]["name"],
+                             "Readiness probe failed: HTTP probe failed with statuscode: 503", count=15))
         lg_bad(200, lat=(2000, 2100))
     elif f == "F10":
         events.append(_event("Unhealthy", pod[target]["metadata"]["name"],

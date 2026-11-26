@@ -210,25 +210,69 @@ def rule_target_port(run: Run) -> Diagnosis | None:
     return None
 
 
-DB_TIMEOUT = re.compile(r"timeout expired|Connection timed out|timed out", re.I)
+# v0.2: a blocking NetworkPolicy can drop (timeout) or reject (refused),
+# depending on the CNI. On k3s it mostly rejects. So match both, and tell it
+# apart from a stopped server by checking that the target still has ready
+# endpoints.
+CONN_FAIL = re.compile(
+    r'(?:connection to server at "(?P<h1>[^"]+)"'
+    r"|connecting to (?P<h2>[A-Za-z0-9.-]+):\d+"
+    r"|host='(?P<h3>[^']+)')"
+    r".*?(?:Connection refused|timeout expired|timed out)",
+    re.I | re.S,
+)
+
+
+def _labels_match(labels: dict, sel: dict) -> bool:
+    return all(labels.get(k) == v for k, v in sel.items())
+
+
+def _ready_addresses(run: Run, svc_name: str) -> int:
+    for ep in run.endpoints:
+        if ep["metadata"]["name"] == svc_name:
+            return sum(len(s.get("addresses") or []) for s in ep.get("subsets") or [])
+    return 0
+
+
+def _ingress_allows(np_: dict, client_labels: dict) -> bool:
+    # only podSelector peers are handled; that is all the demo app uses
+    for rule in np_.get("spec", {}).get("ingress") or []:
+        peers = rule.get("from")
+        if not peers:
+            return True
+        for peer in peers:
+            sel = (peer.get("podSelector") or {}).get("matchLabels")
+            if sel is not None and _labels_match(client_labels, sel):
+                return True
+    return False
 
 
 def rule_netpol(run: Run) -> Diagnosis | None:
     if not run.netpols:
         return None
-    hits = _log_matches(run, DB_TIMEOUT)
-    if not hits:
-        return None
-    for np_ in run.netpols:
-        sel = np_.get("spec", {}).get("podSelector", {}).get("matchLabels", {}) or {}
-        targets = [p for p in run.pods
-                   if all(p["metadata"].get("labels", {}).get(k) == v for k, v in sel.items())]
-        if targets:
+    services = {s["metadata"]["name"]: s for s in _app_services(run)}
+    for ln, m in _log_matches(run, CONN_FAIL):
+        host = m.group("h1") or m.group("h2") or m.group("h3")
+        svc = services.get(host)
+        if not svc or _ready_addresses(run, host) == 0:
+            continue  # unknown host, or the server is really down
+        targets = _selected_pods(run, svc)
+        client = next((p for p in run.pods if p["metadata"]["name"] == ln.pod), None)
+        client_labels = client["metadata"].get("labels", {}) if client else {"app": ln.app}
+        for np_ in run.netpols:
+            if "Ingress" not in (np_.get("spec", {}).get("policyTypes") or ["Ingress"]):
+                continue
+            sel = np_.get("spec", {}).get("podSelector", {}).get("matchLabels", {}) or {}
+            if not any(_labels_match(p["metadata"].get("labels", {}), sel) for p in targets):
+                continue
+            if _ingress_allows(np_, client_labels):
+                continue
             name = np_["metadata"]["name"]
             return Diagnosis("F09", f"networkpolicy/{name}", "netpol",
-                             f"Connections time out and NetworkPolicy '{name}' restricts ingress to "
-                             f"{sorted({p['metadata']['labels'].get('app') for p in targets})}.",
-                             [_fmt(ln) for ln, _ in hits[:3]])
+                             f"'{ln.app}' cannot connect to Service '{host}' although it has "
+                             f"{_ready_addresses(run, host)} ready endpoint(s), and NetworkPolicy "
+                             f"'{name}' blocks ingress from '{ln.app}' to those pods.",
+                             [_fmt(ln)])
     return None
 
 

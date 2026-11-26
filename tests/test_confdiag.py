@@ -64,3 +64,26 @@ def test_evaluate_end_to_end(tmp_path):
     for f in ("metrics.json", "per_run.csv", "summary.md", "confusion_rules.png"):
         assert (tmp_path / "results" / f).exists()
     json.loads((tmp_path / "results" / "metrics.json").read_text())
+
+
+def _rewrite(path, name, fn):
+    f = path / name
+    items = json.loads(f.read_text())["items"]
+    f.write_text(json.dumps({"items": fn(items)}))
+
+
+def test_netpol_rule_needs_ready_endpoints(tmp_path):
+    # same refused errors, but postgres has no ready endpoints: the server is
+    # down, not blocked, so the netpol rule must not fire
+    path = build_run(tmp_path, "F09-a")
+    _rewrite(path, "endpoints.json",
+             lambda eps: [dict(e, subsets=[]) if e["metadata"]["name"] == "postgres" else e for e in eps])
+    assert diagnose(load_run(path)).fault != "F09"
+
+
+def test_netpol_rule_ignores_policy_that_allows_client(tmp_path):
+    path = build_run(tmp_path, "F09-a")
+    allow = [{"from": [{"podSelector": {"matchLabels": {"app": "orders"}}}]}]
+    _rewrite(path, "networkpolicies.json",
+             lambda nps: [{**n, "spec": {**n["spec"], "ingress": allow}} for n in nps])
+    assert diagnose(load_run(path)).fault != "F09"
