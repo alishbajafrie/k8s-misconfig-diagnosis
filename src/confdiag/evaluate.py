@@ -2,7 +2,7 @@
 between services: train a / test b and (v0.2) train b / test a.
 
 v0.2 also reports top-3 accuracy and MRR for the learned model, and a 95%
-bootstrap confidence interval for every accuracy."""
+Wilson confidence interval for every accuracy."""
 from __future__ import annotations
 
 import csv
@@ -24,24 +24,24 @@ from .parse import Run, find_runs, load_run  # noqa: E402
 from .rules import diagnose  # noqa: E402
 
 
-N_BOOT = 1000
-
-
-def _acc_ci(y_true, y_pred, seed: int = 0) -> list[float]:
-    """95% percentile bootstrap interval for accuracy (resampling runs)."""
-    hits = np.array([t == p for t, p in zip(y_true, y_pred)], dtype=float)
-    if len(hits) == 0:
+def _acc_ci(y_true, y_pred, z: float = 1.96) -> list[float]:
+    """95% Wilson score interval for accuracy. Unlike a bootstrap it does not
+    collapse to [1, 1] when every run is correct (e.g. 13/13 -> [0.77, 1])."""
+    n = len(y_true)
+    if n == 0:
         return [0.0, 0.0]
-    rng = np.random.default_rng(seed)
-    means = rng.choice(hits, size=(N_BOOT, len(hits)), replace=True).mean(axis=1)
-    return [round(float(np.percentile(means, 2.5)), 4), round(float(np.percentile(means, 97.5)), 4)]
+    p = sum(t == q for t, q in zip(y_true, y_pred)) / n
+    denom = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / denom
+    half = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
+    return [round(float(max(0.0, centre - half)), 4), round(float(min(1.0, centre + half)), 4)]
 
 
 def _scores(y_true, y_pred, ranked=None, seed: int = 0) -> dict:
     out = {
         "n": len(y_true),
         "accuracy": round(accuracy_score(y_true, y_pred), 4),
-        "accuracy_ci95": _acc_ci(y_true, y_pred, seed),
+        "accuracy_ci95": _acc_ci(y_true, y_pred),
         "macro_f1": round(f1_score(y_true, y_pred, average="macro", zero_division=0), 4),
     }
     if ranked is not None:
@@ -192,5 +192,5 @@ def summary_md(res: dict) -> str:
         if "skipped" in res.get(sec, {}):
             lines.append(f"\n_{sec} skipped: {res[sec]['skipped']}_")
     lines.append("\nRules give one answer, so they have no top-3 or MRR. "
-                 "CI = 95% bootstrap interval over runs (1000 resamples).")
+                 "CI = 95% Wilson interval for accuracy.")
     return "\n".join(lines) + "\n"
